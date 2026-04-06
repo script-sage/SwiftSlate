@@ -1,7 +1,9 @@
 package com.musheer360.swiftslate.model
 
 enum class CommandType {
-    AI, TEXT_REPLACER
+    AI,
+    TEXT_REPLACER,
+    FILE_SHARE
 }
 
 data class Command(

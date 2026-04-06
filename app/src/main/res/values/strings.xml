@@ -44,6 +44,11 @@
     <string name="commands_error_prefix">Trigger must start with \'%1$s\'</string>
     <string name="commands_error_duplicate">A command with this trigger already exists</string>
 
+    <string name="commands_type_file">File Share</string>
+    <string name="commands_file_prompt_placeholder">File Path or URI</string>
+    <string name="commands_browse">Browse</string>
+    <string name="commands_error_file_missing">File could not be found or read. Please check the path.</string>
+
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_provider_title">Provider</string>
@@ -55,8 +60,12 @@
     <string name="settings_model_desc">Model identifier from your provider</string>
     <string name="settings_endpoint_placeholder">https://api.example.com/v1</string>
     <string name="settings_model_placeholder">gpt-4o, claude-3-haiku, etc.</string>
-    <string name="settings_trigger_prefix_title">Trigger Prefix</string>
+    <string name="settings_trigger_prefix_title">Ai Trigger Prefix</string>
     <string name="settings_trigger_prefix_desc">Symbol used before command names (e.g., %1$sfix). Must be a single non-alphanumeric character.</string>
+    <string name="settings_file_share_prefix_title">File Share Trigger Prefix</string>
+    <string name="settings_file_share_prefix_desc">Symbol used before file share macro names (e.g., %1$sresume). Must be a single non-alphanumeric character.</string>
+    <string name="settings_text_replacer_prefix_title">Text Replacer Trigger Prefix</string>
+    <string name="settings_text_replacer_prefix_desc">Symbol used before text replacer macro names (e.g., %1$sfix). Must be a single non-alphanumeric character.</string>
     <string name="settings_prefix_error_length">Must be exactly 1 character</string>
     <string name="settings_prefix_error_whitespace">Cannot be whitespace</string>
     <string name="settings_prefix_error_alphanumeric">Cannot be a letter or digit</string>

@@ -6,6 +6,8 @@ import android.animation.ObjectAnimator
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -60,6 +62,7 @@ class AssistantService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private var triggerLastChars = setOf<Char>()
     private var cachedPrefix = CommandManager.DEFAULT_PREFIX
+    private var cachedFileSharePrefix = CommandManager.DEFAULT_FILE_SHARE_PREFIX
     private var currentJob: Job? = null
     @Volatile
     private var lastOriginalText: String? = null
@@ -95,6 +98,7 @@ class AssistantService : AccessibilityService() {
 
     private fun updateTriggers() {
         cachedPrefix = commandManager.getTriggerPrefix()
+        cachedFileSharePrefix = commandManager.getFileSharePrefix()
         val cmds = commandManager.getCommands()
         triggerLastChars = cmds.mapNotNull { it.trigger.lastOrNull() }.toSet()
         lastTriggerRefresh = System.currentTimeMillis()
@@ -173,6 +177,31 @@ class AssistantService : AccessibilityService() {
                 processingStartedAt = System.currentTimeMillis()
                 currentJob?.cancel()
                 processCommand(source, cleanText, command)
+            }
+            CommandType.FILE_SHARE -> {
+                isProcessing = true
+                processingStartedAt = System.currentTimeMillis()
+                currentJob?.cancel()
+                currentJob = serviceScope.launch {
+                    try {
+                        withContext(Dispatchers.Main) {
+                            lastOriginalText = precedingText.ifEmpty { text }
+                            replaceText(source, precedingText)
+                            handleFileShare(command.prompt)
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            showToast("Could not execute file share")
+                        }
+                    } finally {
+                        withContext(NonCancellable + Dispatchers.Main) {
+                            processingStartedAt = 0L
+                            if (!handler.postDelayed({ isProcessing = false }, 500)) {
+                                isProcessing = false
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -559,5 +588,24 @@ class AssistantService : AccessibilityService() {
         super.onDestroy()
         dismissOverlayToast()
         serviceScope.cancel()
+    }
+
+    private fun handleFileShare(uriString: String) {
+        try {
+            val uri = Uri.parse(uriString)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "*/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            val chooser = Intent.createChooser(shareIntent, "Share file via").apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(chooser)
+        } catch (e: Exception) {
+            serviceScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                showToast("Failed to share file")
+            }
+        }
     }
 }

@@ -1,5 +1,10 @@
 package com.musheer360.swiftslate.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,9 +42,38 @@ fun CommandsScreen() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedType by remember { mutableStateOf(CommandType.AI) }
     var editingTrigger by remember { mutableStateOf<String?>(null) }
-    val prefix = commandManager.getTriggerPrefix()
-    val errorPrefixMsg = stringResource(R.string.commands_error_prefix, prefix)
+    val aiPrefix = commandManager.getTriggerPrefix()
+    val fileSharePrefix = commandManager.getFileSharePrefix()
+    val textReplacerPrefix = commandManager.getTextReplacerPrefix()
+    val activePrefix = when (selectedType) {
+        CommandType.AI -> aiPrefix
+        CommandType.TEXT_REPLACER -> textReplacerPrefix
+        CommandType.FILE_SHARE -> fileSharePrefix
+    }
+    val errorPrefixMsg = stringResource(R.string.commands_error_prefix, activePrefix)
     val errorDuplicateMsg = stringResource(R.string.commands_error_duplicate)
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(it, takeFlags)
+            prompt = it.toString()
+            errorMessage = null
+        }
+    }
+    
+    fun checkFileExists(uriStr: String): Boolean {
+        return try {
+            val uri = Uri.parse(uriStr)
+            var exists = false
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) { exists = true }
+            }
+            exists
+        } catch (e: Exception) { false }
+    }
 
     Column(
         modifier = Modifier
@@ -66,7 +100,7 @@ fun CommandsScreen() {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         selectedType = CommandType.AI
                     },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
                 ) {
                     Text(stringResource(R.string.commands_type_ai))
                 }
@@ -76,9 +110,19 @@ fun CommandsScreen() {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         selectedType = CommandType.TEXT_REPLACER
                     },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3)
                 ) {
                     Text(stringResource(R.string.commands_type_replacer))
+                }
+                SegmentedButton(
+                    selected = selectedType == CommandType.FILE_SHARE,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        selectedType = CommandType.FILE_SHARE
+                    },
+                    shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3)
+                ) {
+                    Text(stringResource(R.string.commands_type_file))
                 }
             }
             OutlinedTextField(
@@ -87,7 +131,7 @@ fun CommandsScreen() {
                     trigger = it
                     errorMessage = null
                 },
-                label = { Text(stringResource(R.string.commands_trigger_label, prefix)) },
+                label = { Text(stringResource(R.string.commands_trigger_label, activePrefix)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -96,16 +140,33 @@ fun CommandsScreen() {
                 )
             )
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = prompt,
-                onValueChange = { prompt = it },
-                label = { Text(if (selectedType == CommandType.AI) stringResource(R.string.commands_prompt_label) else stringResource(R.string.commands_replacement_label)) },
-                modifier = Modifier.fillMaxWidth().height(100.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = prompt,
+                    onValueChange = { prompt = it },
+                    label = { 
+                        Text(when (selectedType) {
+                            CommandType.AI -> stringResource(R.string.commands_prompt_label)
+                            CommandType.TEXT_REPLACER -> stringResource(R.string.commands_replacement_label)
+                            CommandType.FILE_SHARE -> stringResource(R.string.commands_file_prompt_placeholder)
+                        }) 
+                    },
+                    modifier = Modifier.weight(1f).height(100.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    )
                 )
-            )
+                if (selectedType == CommandType.FILE_SHARE) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = { filePickerLauncher.launch("*/*") }) {
+                        Text(stringResource(R.string.commands_browse))
+                    }
+                }
+            }
             errorMessage?.let { msg ->
                 Text(
                     text = msg,
@@ -137,12 +198,16 @@ fun CommandsScreen() {
                     onClick = {
                         val trimmedTrigger = trigger.trim()
                         if (trimmedTrigger.isNotBlank() && prompt.isNotBlank()) {
-                            if (!trimmedTrigger.startsWith(prefix)) {
+                            if (!trimmedTrigger.startsWith(activePrefix)) {
                                 errorMessage = errorPrefixMsg
                                 return@Button
                             }
                             if (commands.any { it.trigger == trimmedTrigger && it.trigger != editingTrigger }) {
                                 errorMessage = errorDuplicateMsg
+                                return@Button
+                            }
+                            if (selectedType == CommandType.FILE_SHARE && !checkFileExists(prompt.trim())) {
+                                errorMessage = context.getString(R.string.commands_error_file_missing)
                                 return@Button
                             }
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -190,6 +255,13 @@ fun CommandsScreen() {
                             if (cmd.type == CommandType.TEXT_REPLACER) {
                                 Text(
                                     text = stringResource(R.string.commands_type_replacer),
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                            } else if (cmd.type == CommandType.FILE_SHARE) {
+                                Text(
+                                    text = stringResource(R.string.commands_type_file),
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.tertiary
                                 )

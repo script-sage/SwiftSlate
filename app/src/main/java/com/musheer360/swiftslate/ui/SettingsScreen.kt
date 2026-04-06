@@ -43,6 +43,10 @@ fun SettingsScreen() {
     val commandManager = remember { CommandManager(context) }
     var triggerPrefix by remember { mutableStateOf(commandManager.getTriggerPrefix()) }
     var prefixError by remember { mutableStateOf<String?>(null) }
+    var fileSharePrefix by remember { mutableStateOf(commandManager.getFileSharePrefix()) }
+    var fileSharePrefixError by remember { mutableStateOf<String?>(null) }
+    var textReplacerPrefix by remember { mutableStateOf(commandManager.getTextReplacerPrefix()) }
+    var textReplacerPrefixError by remember { mutableStateOf<String?>(null) }
 
     val prefixErrorLength = stringResource(R.string.settings_prefix_error_length)
     val prefixErrorWhitespace = stringResource(R.string.settings_prefix_error_whitespace)
@@ -275,6 +279,106 @@ fun SettingsScreen() {
                 )
             )
             prefixError?.let { msg ->
+                Text(
+                    text = msg,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SlateCard {
+            Text(
+                text = stringResource(R.string.settings_file_share_prefix_title),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.settings_file_share_prefix_desc, fileSharePrefix),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = fileSharePrefix,
+                onValueChange = { input ->
+                    val filtered = input.take(1)
+                    fileSharePrefix = filtered
+                    fileSharePrefixError = when {
+                        filtered.length != 1 -> prefixErrorLength
+                        filtered[0].isWhitespace() -> prefixErrorWhitespace
+                        filtered[0].isLetterOrDigit() -> prefixErrorAlphanumeric
+                        else -> {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            commandManager.setFileSharePrefix(filtered)
+                            null
+                        }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier.width(80.dp),
+                isError = fileSharePrefixError != null,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                )
+            )
+            fileSharePrefixError?.let { msg ->
+                Text(
+                    text = msg,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SlateCard {
+            Text(
+                text = stringResource(R.string.settings_text_replacer_prefix_title),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.settings_text_replacer_prefix_desc, textReplacerPrefix),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = textReplacerPrefix,
+                onValueChange = { input ->
+                    val filtered = input.take(1)
+                    textReplacerPrefix = filtered
+                    textReplacerPrefixError = when {
+                        filtered.length != 1 -> prefixErrorLength
+                        filtered[0].isWhitespace() -> prefixErrorWhitespace
+                        filtered[0].isLetterOrDigit() -> prefixErrorAlphanumeric
+                        else -> {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            commandManager.setTextReplacerPrefix(filtered)
+                            null
+                        }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier.width(80.dp),
+                isError = textReplacerPrefixError != null,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                )
+            )
+            textReplacerPrefixError?.let { msg ->
                 Text(
                     text = msg,
                     color = MaterialTheme.colorScheme.error,

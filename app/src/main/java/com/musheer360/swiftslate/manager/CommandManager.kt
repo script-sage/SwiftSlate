@@ -14,6 +14,10 @@ class CommandManager(context: Context) {
     companion object {
         const val DEFAULT_PREFIX = "?"
         const val PREF_TRIGGER_PREFIX = "trigger_prefix"
+        const val DEFAULT_TEXT_REPLACER_PREFIX = "!"
+        const val PREF_TEXT_REPLACER_PREFIX = "text_replacer_prefix"
+        const val DEFAULT_FILE_SHARE_PREFIX = "/"
+        const val PREF_FILE_SHARE_PREFIX = "file_share_prefix"
     }
 
     // Built-in command names (without prefix) and their prompts
@@ -26,7 +30,8 @@ class CommandManager(context: Context) {
         "casual" to "Rewrite in a casual, friendly tone.",
         "emoji" to "Add relevant emojis throughout.",
         "reply" to "Generate a contextual reply to this message.",
-        "undo" to "Undo the last replacement and restore the original text."
+        "undo" to "Undo the last replacement and restore the original text.",
+        "tribal" to "Act like a primitive caveman speaking broken tribal English. Use very simple words, short sentences, and incorrect grammar."
     )
 
     fun getTriggerPrefix(): String {
@@ -45,8 +50,67 @@ class CommandManager(context: Context) {
         val newArr = JSONArray()
         for (i in 0 until arr.length()) {
             val obj = arr.getJSONObject(i)
+            val type = try { CommandType.valueOf(obj.optString("type", CommandType.AI.name)) } catch (_: Exception) { CommandType.AI }
             val oldTrigger = obj.getString("trigger")
-            val migrated = if (oldTrigger.startsWith(oldPrefix)) {
+            val migrated = if (type == CommandType.AI && oldTrigger.startsWith(oldPrefix)) {
+                newPrefix + oldTrigger.removePrefix(oldPrefix)
+            } else oldTrigger
+            val newObj = JSONObject()
+            newObj.put("trigger", migrated)
+            newObj.put("prompt", obj.getString("prompt"))
+            newObj.put("type", obj.optString("type", CommandType.AI.name))
+            newArr.put(newObj)
+        }
+        prefs.edit().putString("custom_commands", newArr.toString()).apply()
+        return true
+    }
+
+    fun getTextReplacerPrefix(): String {
+        return settingsPrefs.getString(PREF_TEXT_REPLACER_PREFIX, DEFAULT_TEXT_REPLACER_PREFIX) ?: DEFAULT_TEXT_REPLACER_PREFIX
+    }
+
+    fun setTextReplacerPrefix(newPrefix: String): Boolean {
+        if (newPrefix.length != 1 || newPrefix[0].isLetterOrDigit() || newPrefix[0].isWhitespace()) return false
+        val oldPrefix = getTextReplacerPrefix()
+        if (oldPrefix == newPrefix) return true
+        settingsPrefs.edit().putString(PREF_TEXT_REPLACER_PREFIX, newPrefix).commit()
+        val customStr = prefs.getString("custom_commands", "[]") ?: "[]"
+        val arr = JSONArray(customStr)
+        val newArr = JSONArray()
+        for (i in 0 until arr.length()) {
+            val obj = arr.getJSONObject(i)
+            val type = try { CommandType.valueOf(obj.optString("type", CommandType.AI.name)) } catch (_: Exception) { CommandType.AI }
+            val oldTrigger = obj.getString("trigger")
+            val migrated = if (type == CommandType.TEXT_REPLACER && oldTrigger.startsWith(oldPrefix)) {
+                newPrefix + oldTrigger.removePrefix(oldPrefix)
+            } else oldTrigger
+            val newObj = JSONObject()
+            newObj.put("trigger", migrated)
+            newObj.put("prompt", obj.getString("prompt"))
+            newObj.put("type", obj.optString("type", CommandType.AI.name))
+            newArr.put(newObj)
+        }
+        prefs.edit().putString("custom_commands", newArr.toString()).apply()
+        return true
+    }
+
+    fun getFileSharePrefix(): String {
+        return settingsPrefs.getString(PREF_FILE_SHARE_PREFIX, DEFAULT_FILE_SHARE_PREFIX) ?: DEFAULT_FILE_SHARE_PREFIX
+    }
+
+    fun setFileSharePrefix(newPrefix: String): Boolean {
+        if (newPrefix.length != 1 || newPrefix[0].isLetterOrDigit() || newPrefix[0].isWhitespace()) return false
+        val oldPrefix = getFileSharePrefix()
+        if (oldPrefix == newPrefix) return true
+        settingsPrefs.edit().putString(PREF_FILE_SHARE_PREFIX, newPrefix).commit()
+        val customStr = prefs.getString("custom_commands", "[]") ?: "[]"
+        val arr = JSONArray(customStr)
+        val newArr = JSONArray()
+        for (i in 0 until arr.length()) {
+            val obj = arr.getJSONObject(i)
+            val type = try { CommandType.valueOf(obj.optString("type", CommandType.AI.name)) } catch (_: Exception) { CommandType.AI }
+            val oldTrigger = obj.getString("trigger")
+            val migrated = if (type == CommandType.FILE_SHARE && oldTrigger.startsWith(oldPrefix)) {
                 newPrefix + oldTrigger.removePrefix(oldPrefix)
             } else oldTrigger
             val newObj = JSONObject()
