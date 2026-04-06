@@ -42,6 +42,7 @@
     <string name="commands_replacement_label">Replacement Text (e.g., myemail@example.com)</string>
     <string name="commands_built_in">Built-in</string>
     <string name="commands_error_prefix">Trigger must start with \'%1$s\'</string>
+    <string name="commands_error_empty_trigger">Trigger name cannot be empty</string>
     <string name="commands_error_duplicate">A command with this trigger already exists</string>
 
     <string name="commands_type_file">File Share</string>

@@ -189,7 +189,7 @@ Use any standard language code with `?translate:XX`:
 
 🔑 **Add API Key**
 
-Open the **Keys** tab, enter your API key. It's validated before saving. Add multiple keys for rotation.
+Open the **Settings** tab, drill down to the API Key section, and enter your key. It's validated before saving. Add multiple keys for round-robin rotation.
 
 </td>
 <td width="33%" align="center">
@@ -259,10 +259,12 @@ Go beyond the built-ins — create your own trigger → prompt pairs in the **Co
 
 ### How to Create One
 
-1. Open the **Commands** screen
-2. Enter a **Trigger** (e.g., `?poem`)
-3. Enter a **Prompt** — the instruction sent to the AI
-4. Tap **"Add Command"**
+1. Open the **Dashboard**
+2. Tap the floating **Add Command** button
+3. Select your command type (AI, Text Replacer, or File Share)
+4. Enter a **Trigger** (e.g., `?poem`)
+5. Enter a **Prompt** — the instruction sent to the AI
+6. Tap **"Add Command"**
 
 ### Example Ideas
 
@@ -297,48 +299,28 @@ SwiftSlate supports multiple API keys with intelligent rotation:
 
 ## 🖥️ App Screens
 
-SwiftSlate has **four screens** accessible via the bottom navigation bar:
+SwiftSlate has a clean **two-tab layout** accessible via the bottom navigation bar:
 
 <table>
 <tr>
-<td width="25%" valign="top">
+<td width="50%" valign="top">
 
 #### 📊 Dashboard
 - Service status indicator (green/red)
 - Enable/disable toggle
-- API key count
-- Quick-start guide
+- Unified command grid (`AI`, `Replacer`, `File Share`)
+- Quick-add Modal Bottom Sheet for new triggers
+- Edit and manage custom triggers
 
 </td>
-<td width="25%" valign="top">
-
-#### 🔑 Keys
-- Add new keys (validated live)
-- Delete existing keys
-- AES-256-GCM encryption
-- Multi-key management
-
-</td>
-<td width="25%" valign="top">
-
-#### 📝 Commands
-- 9 built-in commands (read-only)
-- Add custom commands
-- Delete custom commands
-- Trigger + prompt pairs
-
-</td>
-<td width="25%" valign="top">
+<td width="50%" valign="top">
 
 #### ⚙️ Settings
-- Provider selection
-  - Google Gemini (default)
-  - Custom (OpenAI Compatible)
-- Gemini model picker
-  - `gemini-2.5-flash-lite` (default)
-  - `gemini-3-flash-preview`
-  - `gemini-3.1-flash-lite-preview`
-- Custom endpoint URL & model name
+- **Keys Management:** Add/Delete AES-256 encrypted API Keys
+- **Provider Selection:** Google Gemini (default) or Custom (OpenAI Compatible)
+- **Model Selection:** `gemini-2.5-flash-lite`, `gemini-3-flash-preview` and more
+- **Global Preferences:** Customize prefixes for all trigger types
+- **About:** Version info and tutorials
 
 </td>
 </tr>

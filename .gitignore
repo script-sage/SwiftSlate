@@ -27,7 +27,7 @@ app/release
 release.keystore
 
 # Ignore custom tool files
-/Guide/
+/tmp/
 /.idea/
 /.vscode/
 gradle/gradle-daemon-jvm.properties
