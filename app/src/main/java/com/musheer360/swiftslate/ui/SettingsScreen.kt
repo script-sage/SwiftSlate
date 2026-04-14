@@ -62,7 +62,11 @@ fun SettingsScreen(commandManager: CommandManager, prefs: SharedPreferences) {
     var endpointError by remember { mutableStateOf<String?>(null) }
 
     var triggerPrefix by remember { mutableStateOf(commandManager.getTriggerPrefix()) }
+    var replacePrefix by remember { mutableStateOf(commandManager.getReplacePrefix()) }
+    var fileSharePrefix by remember { mutableStateOf(commandManager.getFileSharePrefix()) }
     var prefixError by remember { mutableStateOf<String?>(null) }
+    var replacePrefixError by remember { mutableStateOf<String?>(null) }
+    var fileSharePrefixError by remember { mutableStateOf<String?>(null) }
     var temperature by remember { mutableStateOf(prefs.getFloat("temperature", 0.5f)) }
 
     val prefixErrorLength = stringResource(R.string.settings_prefix_error_length)
@@ -397,17 +401,23 @@ fun SettingsScreen(commandManager: CommandManager, prefs: SharedPreferences) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Card 2: Trigger Prefix
+        // Card 2: Trigger Prefixes
         SlateCard {
+            Text(
+                text = "Command Triggers",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.settings_trigger_prefix_desc, triggerPrefix),
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = "AI Prefix",
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f).padding(end = 16.dp)
                 )
                 SlateTextField(
@@ -421,7 +431,7 @@ fun SettingsScreen(commandManager: CommandManager, prefs: SharedPreferences) {
                             filtered[0].isLetterOrDigit() -> prefixErrorAlphanumeric
                             else -> {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                commandManager.setTriggerPrefix(filtered)
+                                commandManager.setTriggerPrefix(filtered, com.musheer360.swiftslate.model.CommandType.AI)
                                 null
                             }
                         }
@@ -431,6 +441,86 @@ fun SettingsScreen(commandManager: CommandManager, prefs: SharedPreferences) {
                 )
             }
             prefixError?.let { msg ->
+                Text(
+                    text = msg,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Text Replacer Prefix",
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f).padding(end = 16.dp)
+                )
+                SlateTextField(
+                    value = replacePrefix,
+                    onValueChange = { input ->
+                        val filtered = input.take(1)
+                        replacePrefix = filtered
+                        replacePrefixError = when {
+                            filtered.length != 1 -> prefixErrorLength
+                            filtered[0].isWhitespace() -> prefixErrorWhitespace
+                            filtered[0].isLetterOrDigit() -> prefixErrorAlphanumeric
+                            else -> {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                commandManager.setTriggerPrefix(filtered, com.musheer360.swiftslate.model.CommandType.TEXT_REPLACER)
+                                null
+                            }
+                        }
+                    },
+                    isError = replacePrefixError != null,
+                    modifier = Modifier.width(64.dp)
+                )
+            }
+            replacePrefixError?.let { msg ->
+                Text(
+                    text = msg,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "File Share Prefix",
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f).padding(end = 16.dp)
+                )
+                SlateTextField(
+                    value = fileSharePrefix,
+                    onValueChange = { input ->
+                        val filtered = input.take(1)
+                        fileSharePrefix = filtered
+                        fileSharePrefixError = when {
+                            filtered.length != 1 -> prefixErrorLength
+                            filtered[0].isWhitespace() -> prefixErrorWhitespace
+                            filtered[0].isLetterOrDigit() -> prefixErrorAlphanumeric
+                            else -> {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                commandManager.setTriggerPrefix(filtered, com.musheer360.swiftslate.model.CommandType.FILE_SHARE)
+                                null
+                            }
+                        }
+                    },
+                    isError = fileSharePrefixError != null,
+                    modifier = Modifier.width(64.dp)
+                )
+            }
+            fileSharePrefixError?.let { msg ->
                 Text(
                     text = msg,
                     color = MaterialTheme.colorScheme.error,

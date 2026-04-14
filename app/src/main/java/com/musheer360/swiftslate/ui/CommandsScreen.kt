@@ -60,8 +60,14 @@ fun CommandsScreen(commandManager: CommandManager) {
     var editingTrigger by rememberSaveable { mutableStateOf<String?>(null) }
     var commandToDelete by remember { mutableStateOf<String?>(null) }
     var isFormExpanded by rememberSaveable { mutableStateOf(false) }
-    val prefix = commandManager.getTriggerPrefix()
-    val errorPrefixMsg = stringResource(R.string.commands_error_prefix, prefix)
+    val currentPrefix = remember(selectedType) {
+        when (selectedType) {
+            CommandType.AI -> commandManager.getTriggerPrefix()
+            CommandType.TEXT_REPLACER -> commandManager.getReplacePrefix()
+            CommandType.FILE_SHARE -> commandManager.getFileSharePrefix()
+        }
+    }
+    val errorPrefixMsg = stringResource(R.string.commands_error_prefix, currentPrefix)
     val errorDuplicateMsg = stringResource(R.string.commands_error_duplicate)
     val errorConflictTemplate = stringResource(R.string.commands_error_conflict, "\u0000")
     val errorEmptyTrigger = stringResource(R.string.commands_error_empty_trigger)
@@ -342,7 +348,7 @@ fun CommandsScreen(commandManager: CommandManager) {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 selectedType = CommandType.AI
                             },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                             colors = SegmentedButtonDefaults.colors(
                                 activeContainerColor = MaterialTheme.colorScheme.primary,
                                 activeContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -360,7 +366,7 @@ fun CommandsScreen(commandManager: CommandManager) {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 selectedType = CommandType.TEXT_REPLACER
                             },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
                             colors = SegmentedButtonDefaults.colors(
                                 activeContainerColor = MaterialTheme.colorScheme.primary,
                                 activeContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -372,6 +378,24 @@ fun CommandsScreen(commandManager: CommandManager) {
                         ) {
                             Text(stringResource(R.string.commands_type_replacer))
                         }
+                        SegmentedButton(
+                            selected = selectedType == CommandType.FILE_SHARE,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                selectedType = CommandType.FILE_SHARE
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
+                            colors = SegmentedButtonDefaults.colors(
+                                activeContainerColor = MaterialTheme.colorScheme.primary,
+                                activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                                activeBorderColor = MaterialTheme.colorScheme.primary,
+                                inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                                inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                inactiveBorderColor = MaterialTheme.colorScheme.outline
+                            )
+                        ) {
+                            Text("File Share")
+                        }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     SlateTextField(
@@ -380,14 +404,18 @@ fun CommandsScreen(commandManager: CommandManager) {
                             trigger = it
                             errorMessage = null
                         },
-                        label = { Text(stringResource(R.string.commands_trigger_label, prefix)) },
+                        label = { Text(stringResource(R.string.commands_trigger_label, currentPrefix)) },
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     SlateTextField(
                         value = prompt,
                         onValueChange = { prompt = it; errorMessage = null },
-                        label = { Text(if (selectedType == CommandType.AI) stringResource(R.string.commands_prompt_label) else stringResource(R.string.commands_replacement_label)) },
+                        label = { Text(when(selectedType) {
+                            CommandType.AI -> stringResource(R.string.commands_prompt_label)
+                            CommandType.TEXT_REPLACER -> stringResource(R.string.commands_replacement_label)
+                            CommandType.FILE_SHARE -> "Share Text To..."
+                        }) },
                         singleLine = false,
                         modifier = Modifier.height(100.dp)
                     )
@@ -419,11 +447,11 @@ fun CommandsScreen(commandManager: CommandManager) {
                         onClick = {
                             val trimmedTrigger = trigger.trim()
                             if (trimmedTrigger.isNotBlank() && prompt.isNotBlank()) {
-                                if (!trimmedTrigger.startsWith(prefix)) {
+                                if (!trimmedTrigger.startsWith(currentPrefix)) {
                                     errorMessage = errorPrefixMsg
                                     return@Button
                                 }
-                                if (trimmedTrigger == prefix || trimmedTrigger.length <= prefix.length) {
+                                if (trimmedTrigger == currentPrefix || trimmedTrigger.length <= currentPrefix.length) {
                                     errorMessage = errorEmptyTrigger
                                     return@Button
                                 }
@@ -454,7 +482,7 @@ fun CommandsScreen(commandManager: CommandManager) {
                                 isFormExpanded = false
                             }
                         },
-                        enabled = trigger.isNotBlank() && trigger.trim() != prefix && prompt.isNotBlank(),
+                        enabled = trigger.isNotBlank() && trigger.trim() != currentPrefix && prompt.isNotBlank(),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     ) {

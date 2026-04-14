@@ -18,7 +18,11 @@ class CommandManager(context: Context) {
 
     companion object {
         const val DEFAULT_PREFIX = "?"
+        const val DEFAULT_REPLACE_PREFIX = "$"
+        const val DEFAULT_FILE_SHARE_PREFIX = "/"
         const val PREF_TRIGGER_PREFIX = "trigger_prefix"
+        const val PREF_REPLACE_PREFIX = "replace_prefix"
+        const val PREF_FILE_SHARE_PREFIX = "file_share_prefix"
         private const val CACHE_TTL_MS = 5_000L
     }
 
@@ -39,10 +43,23 @@ class CommandManager(context: Context) {
         return settingsPrefs.getString(PREF_TRIGGER_PREFIX, DEFAULT_PREFIX) ?: DEFAULT_PREFIX
     }
 
-    @Synchronized fun setTriggerPrefix(newPrefix: String): Boolean {
+    fun getReplacePrefix(): String {
+        return settingsPrefs.getString(PREF_REPLACE_PREFIX, DEFAULT_REPLACE_PREFIX) ?: DEFAULT_REPLACE_PREFIX
+    }
+
+    fun getFileSharePrefix(): String {
+        return settingsPrefs.getString(PREF_FILE_SHARE_PREFIX, DEFAULT_FILE_SHARE_PREFIX) ?: DEFAULT_FILE_SHARE_PREFIX
+    }
+
+    @Synchronized fun setTriggerPrefix(newPrefix: String, type: CommandType): Boolean {
         if (newPrefix.length != 1 || newPrefix[0].isLetterOrDigit() || newPrefix[0].isWhitespace()) return false
+        val prefKey = when (type) {
+            CommandType.AI -> PREF_TRIGGER_PREFIX
+            CommandType.TEXT_REPLACER -> PREF_REPLACE_PREFIX
+            CommandType.FILE_SHARE -> PREF_FILE_SHARE_PREFIX
+        }
         // Write prefix first so crash between writes is self-healing on retry
-        settingsPrefs.edit().putString(PREF_TRIGGER_PREFIX, newPrefix).apply()
+        settingsPrefs.edit().putString(prefKey, newPrefix).apply()
         // Migrate custom command triggers — idempotent: always fix commands not matching current prefix
         val customStr = prefs.getString("custom_commands", "[]") ?: "[]"
         val arr = try { JSONArray(customStr) } catch (_: Exception) {
@@ -53,9 +70,11 @@ class CommandManager(context: Context) {
         val newArr = JSONArray()
         for (i in 0 until arr.length()) {
             val obj = arr.getJSONObject(i)
+            val typeStr = obj.optString("type", CommandType.AI.name)
+            val currType = try { CommandType.valueOf(typeStr) } catch (_: Exception) { CommandType.AI }
+            // Only migrate commands of the specific type that just changed prefix
             val oldTrigger = obj.getString("trigger")
-            val migrated = if (!oldTrigger.startsWith(newPrefix)) {
-                // Strip any single-char non-alphanumeric prefix, then apply new prefix
+            val migrated = if (currType == type && !oldTrigger.startsWith(newPrefix)) {
                 val stripped = if (oldTrigger.isNotEmpty() && !oldTrigger[0].isLetterOrDigit()) oldTrigger.substring(1) else oldTrigger
                 newPrefix + stripped
             } else oldTrigger
@@ -82,23 +101,35 @@ class CommandManager(context: Context) {
         val now = System.currentTimeMillis()
         val cached = cachedCommands
         if (cached != null && now - cacheTimestamp < CACHE_TTL_MS) return cached
-        val prefix = getTriggerPrefix()
+        val prefixAI = getTriggerPrefix()
+        val prefixRep = getReplacePrefix()
+        val prefixFS = getFileSharePrefix()
         val customStr = prefs.getString("custom_commands", "[]") ?: "[]"
         val arr = JSONArray(customStr)
         val customCommands = mutableListOf<Command>()
-        var needsMigration = false
+        var needsMigrationType: CommandType? = null
         for (i in 0 until arr.length()) {
             val obj = arr.getJSONObject(i)
             val trigger = obj.getString("trigger")
-            if (!trigger.startsWith(prefix)) needsMigration = true
-            customCommands.add(Command(trigger, obj.getString("prompt"), false,
-                try { CommandType.valueOf(obj.optString("type", CommandType.AI.name)) } catch (_: Exception) { CommandType.AI }))
+            val type = try { CommandType.valueOf(obj.optString("type", CommandType.AI.name)) } catch (_: Exception) { CommandType.AI }
+            // Check prefix mismatch depending on type
+            when (type) {
+                CommandType.AI -> if (!trigger.startsWith(prefixAI)) needsMigrationType = CommandType.AI
+                CommandType.TEXT_REPLACER -> if (!trigger.startsWith(prefixRep)) needsMigrationType = CommandType.TEXT_REPLACER
+                CommandType.FILE_SHARE -> if (!trigger.startsWith(prefixFS)) needsMigrationType = CommandType.FILE_SHARE
+            }
+            customCommands.add(Command(trigger, obj.getString("prompt"), false, type))
         }
-        // Self-heal prefix mismatch (e.g. crash between two apply() calls in setTriggerPrefix)
-        if (needsMigration && !migrating) {
+        // Self-heal prefix mismatch
+        if (needsMigrationType != null && !migrating) {
             migrating = true
             try {
-                setTriggerPrefix(prefix)
+                val p = when (needsMigrationType) {
+                    CommandType.AI -> prefixAI
+                    CommandType.TEXT_REPLACER -> prefixRep
+                    CommandType.FILE_SHARE -> prefixFS
+                }
+                setTriggerPrefix(p, needsMigrationType)
                 return getCommands()
             } finally {
                 migrating = false
@@ -158,9 +189,14 @@ class CommandManager(context: Context) {
                 val prompt = obj.optString("prompt", "")
                 if (trigger.isBlank() || prompt.isBlank()) return false
                 if (trigger.length > 50 || prompt.length > 5000) return false
+                val typeStr = obj.optString("type", CommandType.AI.name)
+                val typeEnum = try { CommandType.valueOf(typeStr) } catch (_: Exception) { CommandType.AI }
+                val prefix = when (typeEnum) {
+                    CommandType.AI -> getTriggerPrefix()
+                    CommandType.TEXT_REPLACER -> getReplacePrefix()
+                    CommandType.FILE_SHARE -> getFileSharePrefix()
+                }
                 if (!trigger.startsWith(prefix)) return false
-                val type = obj.optString("type", CommandType.AI.name)
-                if (type != CommandType.AI.name && type != CommandType.TEXT_REPLACER.name) return false
             }
             prefs.edit().putString("custom_commands", arr.toString()).apply()
             cachedCommands = null

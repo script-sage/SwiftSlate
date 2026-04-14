@@ -3,7 +3,7 @@ package com.musheer360.swiftslate.model
 import androidx.compose.runtime.Immutable
 
 enum class CommandType {
-    AI, TEXT_REPLACER
+    AI, TEXT_REPLACER, FILE_SHARE
 }
 
 @Immutable

@@ -265,6 +265,21 @@ class AssistantService : AccessibilityService() {
                     }
                 }
             }
+            CommandType.FILE_SHARE -> {
+                if (cleanText.isEmpty()) {
+                    source.safeRecycle()
+                    return
+                }
+                if (!isProcessing.compareAndSet(false, true)) {
+                    source.safeRecycle()
+                    return
+                }
+                processingStartedAt = System.currentTimeMillis()
+                startWatchdog()
+                cancelPendingProcessingReset()
+                currentJob?.cancel()
+                handleFileShare(source, precedingText, cleanText, command)
+            }
             CommandType.AI -> {
                 if (cleanText.isEmpty()) {
                     source.safeRecycle()
@@ -452,6 +467,48 @@ class AssistantService : AccessibilityService() {
                 throw e
             } catch (e: Exception) {
                 showToast("Could not undo")
+            } finally {
+                withContext(NonCancellable + Dispatchers.Main) {
+                    if (currentJob === thisJob) {
+                        cancelWatchdog()
+                        processingStartedAt = 0L
+                        scheduleProcessingReset()
+                    }
+                    recycleIfUnowned(source)
+                }
+            }
+        }
+    }
+
+    private fun handleFileShare(source: AccessibilityNodeInfo, precedingText: String, cleanText: String, command: Command) {
+        currentJob = serviceScope.launch {
+            val thisJob = coroutineContext[Job]
+            try {
+                withContext(Dispatchers.Main) {
+                    lastOriginalText = precedingText
+                    lastUndoSourceId = sourceId(source)
+                    replaceText(source, precedingText)
+                    
+                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        val contentToShare = if (command.prompt.isNotBlank()) "${command.prompt}\n$cleanText" else cleanText
+                        putExtra(android.content.Intent.EXTRA_TEXT, contentToShare)
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    val chooser = android.content.Intent.createChooser(shareIntent, "Share via").apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    applicationContext.startActivity(chooser)
+                    
+                    performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    statsManager.recordUsage("file_share")
+                }
+            } catch(e: CancellationException) {
+                throw e
+            } catch(e: Exception) {
+                withContext(Dispatchers.Main) {
+                    showToast("Could not share text")
+                }
             } finally {
                 withContext(NonCancellable + Dispatchers.Main) {
                     if (currentJob === thisJob) {
