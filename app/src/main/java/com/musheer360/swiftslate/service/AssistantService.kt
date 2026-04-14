@@ -489,13 +489,26 @@ class AssistantService : AccessibilityService() {
                     lastUndoSourceId = sourceId(source)
                     replaceText(source, precedingText)
                     
+                    val fileUri = try { android.net.Uri.parse(command.prompt) } catch (e: Exception) { null }
+                    if (fileUri == null || fileUri.toString().isBlank()) {
+                        showToast("No valid file configured for this command")
+                        return@withContext
+                    }
+
+                    val mimeType = applicationContext.contentResolver.getType(fileUri) ?: "*/*"
+
                     val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        val contentToShare = if (command.prompt.isNotBlank()) "${command.prompt}\n$cleanText" else cleanText
-                        putExtra(android.content.Intent.EXTRA_TEXT, contentToShare)
+                        type = mimeType
+                        putExtra(android.content.Intent.EXTRA_STREAM, fileUri)
+                        
+                        if (cleanText.isNotBlank()) {
+                            putExtra(android.content.Intent.EXTRA_TEXT, cleanText)
+                        }
+                        
+                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    val chooser = android.content.Intent.createChooser(shareIntent, "Share via").apply {
+                    val chooser = android.content.Intent.createChooser(shareIntent, "Share File").apply {
                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
                     applicationContext.startActivity(chooser)

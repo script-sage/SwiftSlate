@@ -28,6 +28,10 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -47,6 +51,7 @@ import com.musheer360.swiftslate.ui.components.SlateTextField
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommandsScreen(commandManager: CommandManager) {
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     var commands by remember { mutableStateOf(commandManager.getCommands()) }
     val displayCommands = remember(commands) {
@@ -58,6 +63,21 @@ fun CommandsScreen(commandManager: CommandManager) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedType by rememberSaveable { mutableStateOf(CommandType.AI) }
     var editingTrigger by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                prompt = it.toString()
+                errorMessage = null
+            } catch (e: Exception) {
+                errorMessage = "Failed to select file"
+            }
+        }
+    }
     var commandToDelete by remember { mutableStateOf<String?>(null) }
     var isFormExpanded by rememberSaveable { mutableStateOf(false) }
     val currentPrefix = remember(selectedType) {
@@ -408,17 +428,37 @@ fun CommandsScreen(commandManager: CommandManager) {
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    SlateTextField(
-                        value = prompt,
-                        onValueChange = { prompt = it; errorMessage = null },
-                        label = { Text(when(selectedType) {
-                            CommandType.AI -> stringResource(R.string.commands_prompt_label)
-                            CommandType.TEXT_REPLACER -> stringResource(R.string.commands_replacement_label)
-                            CommandType.FILE_SHARE -> "Share Text To..."
-                        }) },
-                        singleLine = false,
-                        modifier = Modifier.height(100.dp)
-                    )
+                    if (selectedType == CommandType.FILE_SHARE) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SlateTextField(
+                                value = prompt,
+                                onValueChange = { },
+                                label = { Text("Selected File URI") },
+                                singleLine = true,
+                                readOnly = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(onClick = { filePickerLauncher.launch(arrayOf("*/*")) }) {
+                                Text("Browse")
+                            }
+                        }
+                    } else {
+                        SlateTextField(
+                            value = prompt,
+                            onValueChange = { prompt = it; errorMessage = null },
+                            label = { Text(when(selectedType) {
+                                CommandType.AI -> stringResource(R.string.commands_prompt_label)
+                                CommandType.TEXT_REPLACER -> stringResource(R.string.commands_replacement_label)
+                                else -> ""
+                            }) },
+                            singleLine = false,
+                            modifier = Modifier.height(100.dp)
+                        )
+                    }
                     errorMessage?.let { msg ->
                         Text(
                             text = msg,
